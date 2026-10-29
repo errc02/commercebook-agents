@@ -1,0 +1,59 @@
+{
+  "name": "@commercebook/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript client for the CommerceBook API: search the market, quote, post a standing request with a ceiling, accept a quote, list a product. Types generated from the OpenAPI document.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/errc02/commercebook-agents.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://commercebook.ai/for-agents",
+  "bugs": {
+    "email": "support@commercebook.ai"
+  },
+  "keywords": [
+    "commercebook",
+    "agent",
+    "commerce",
+    "marketplace",
+    "warehouse",
+    "openapi",
+    "sdk"
+  ],
+  "scripts": {
+    "types": "node scripts/write-types.mjs",
+    "types:check": "node scripts/write-types.mjs --check",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run types:check && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "openapi-typescript": "7.13.0",
+    "typescript": "~5.9"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

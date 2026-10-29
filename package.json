@@ -1,0 +1,14 @@
+{
+  "name": "commercebook-agents",
+  "private": true,
+  "description": "The CommerceBook MCP server, SDKs and agent skills.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/mcp",
+    "packages/sdk"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "name": "@commercebook/mcp",
+  "version": "0.4.1",
+  "description": "MCP server for CommerceBook, a network of verified warehouses and the sellers who sell through them. Without a key it reads the market and the open requests; with the member's key it works the account, every call on the owner's ledger.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "commercebook-mcp": "dist/stdio.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/errc02/commercebook-agents.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://commercebook.ai/for-agents",
+  "bugs": {
+    "email": "support@commercebook.ai"
+  },
+  "keywords": [
+    "commercebook",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "commerce",
+    "marketplace",
+    "warehouse"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/stdio.js', 0o755)\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/stdio.js",
+    "start:http": "node dist/http.js",
+    "smoke": "node scripts/smoke.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "~5.9"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

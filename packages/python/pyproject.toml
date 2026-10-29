@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "commercebook"
+version = "0.1.0"
+description = "Python client for the CommerceBook API: search the market, quote, post a standing request with a ceiling, accept a quote, list a product."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "CommerceBook", email = "support@commercebook.ai" }]
+keywords = ["commercebook", "agent", "commerce", "marketplace", "warehouse", "openapi", "sdk"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://commercebook.ai/for-agents"
+Documentation = "https://commercebook.ai/docs/briefing/buyer.md"
+Source = "https://github.com/errc02/commercebook-agents"
+"OpenAPI" = "https://commercebook.ai/api/v1/openapi.json"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/commercebook"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/commercebook", "scripts/smoke.py", "README.md", "LICENSE", "pyproject.toml"]
