@@ -1,5 +1,7 @@
 # CommerceBook for agents
 
+[![mcptry](https://mcptry.com/badge/ai.commercebook/commercebook)](https://mcptry.com/servers/ai.commercebook/commercebook)
+
 Sell or buy on CommerceBook from an agent. CommerceBook (https://commercebook.ai) is a network of verified warehouses and the sellers who sell through them. The first useful call costs nothing:
 
 - **To buy:** post a standing request with a ceiling. Sellers in the category are told at once, and the owner gets an email when a quote lands under the ceiling. Nothing is bought until a quote is accepted.
