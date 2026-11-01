@@ -34,13 +34,13 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
 export function registerAgentLimitsTools(server: McpServer, api: ApiClient): void {
   server.registerTool('commercebook_key_limits_get', {
     title: 'Read the limits on a key',
-    description: 'GET /keys/{id}/limits: the spending cap per 30 days, the amount above which a payment waits for the owner, the actions the owner confirms, the calls per hour, what the key spent in 30 days and how many of its actions wait.',
+    description: 'GET /keys/{id}/limits: the spending cap per 30 days, the monthly budget (budget_month_cents, a calendar month in Central time), the amount above which a payment waits for the owner, the actions the owner confirms, the calls per hour, what the key spent in 30 days and this month (spent_month_cents), what remains of the budget (budget_month_remaining_cents) and how many of its actions wait.',
     inputSchema: { key_id: UUID },
   }, async ({ key_id }) => run(() => api.get(`/keys/${key_id}/limits`)));
   server.registerTool('commercebook_key_limits_set', {
     title: 'Lower the limits on a key',
-    description: 'PUT /keys/{id}/limits: fields left out keep their value. With an agent link key a limit can only be lowered; raising one needs the owner signed in (403 owner_in_person).',
-    inputSchema: { key_id: UUID, spend_cap_cents: MONEY.optional(), confirm_above_cents: MONEY.optional(), confirm_actions: z.array(CONFIRM).optional(), rate_per_hour: z.number().int().min(1).max(600).optional() },
+    description: 'PUT /keys/{id}/limits: fields left out keep their value. budget_month_cents is the monthly budget (null is none). With an agent link key a limit can only be lowered or added; raising or removing one needs the owner signed in (403 owner_in_person).',
+    inputSchema: { key_id: UUID, spend_cap_cents: MONEY.optional(), confirm_above_cents: MONEY.optional(), confirm_actions: z.array(CONFIRM).optional(), rate_per_hour: z.number().int().min(1).max(600).optional(), budget_month_cents: MONEY.optional() },
   }, async ({ key_id, ...limits }) => run(() => api.put(`/keys/${key_id}/limits`, Object.fromEntries(Object.entries(limits).filter(([, v]) => v !== undefined)))));
   server.registerTool('commercebook_pending_list', {
     title: 'List the actions waiting for the owner',

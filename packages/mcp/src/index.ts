@@ -9,9 +9,13 @@ export { PAYMENTS_TOOL_NAMES, registerPaymentsTools } from './payments-tools.js'
 export { MARKET_KEYLESS_TOOL_NAMES, MARKET_TOOL_NAMES, registerMarketKeylessTools, registerMarketTools } from './market-tools.js';
 export { CARRIER_TOOL_NAMES, registerCarrierTools } from './carrier-tools.js';
 export { FEEDBACK_BOARD_TOOL_NAMES, registerFeedbackBoardTools } from './feedback-board-tools.js';
+export { LEAD_SHARE_TOOL_NAMES, registerLeadShareTools } from './lead-share-tools.js';
+export { WORK_QUEUE_TOOL_NAMES, registerWorkQueueTools } from './work-queue-tools.js';
 export { COMMON_TOOL_NAMES, limitTools, toolAllowed, toolKind, type MemberKind, type ToolKind } from './scope.js';
 export { handleMcpRequest } from './remote.js';
 export { CAPABILITIES_TOOL_NAMES, registerCapabilitiesTools } from './capabilities-tools.js';
+export { EVENTS_TOOL_NAMES, registerEventsTools } from './events-tools.js';
+export { ALL_EVENT_TYPES, BUYER_EVENT_TYPES, EVENT_TYPES, SELLER_EVENT_TYPES, eventTypesFor, type EventType } from './event-types.js';
 export { NEEDS_KEY_RE, endpointOf, needsKeyAnswer, needsKeySentence, toolAccess, type AccessRole, type ToolAccess } from './access.js';
 export { ALIAS_WINDOW, ALIASES, INTENT_TOOL_NAMES, INTENT_TOOLS, KEYLESS_INTENT_TOOLS, TOOL_SEARCH_NAME, intentTool, intentWords, opOf, toolsForRole, type IntentAction, type IntentListing, type IntentRole, type IntentTool } from './intent-table.js';
 export { deprecatedUse, describeIntent, intentJsonSchema, parseRole, searchIntents, setConnectionRole, type ConnectionRole, type Op } from './intent-surface.js';

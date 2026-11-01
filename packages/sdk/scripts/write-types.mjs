@@ -36,7 +36,7 @@ const header = [
 const fresh = `${header}${astToString(ast)}`.replace(/\n+$/, '\n');
 
 if (CHECK) {
-  const current = existsSync(OUT) ? readFileSync(OUT, 'utf8') : null;
+  const current = existsSync(OUT) ? readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') : null;
   if (current === fresh) {
     console.log(`PASS packages/commercebook-sdk/src/schema.ts: current with ${Object.keys(doc.paths).length} paths`);
     process.exit(0);

@@ -12,8 +12,10 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { ALIAS_WINDOW, ALIASES, INTENT_TOOLS, TOOL_SEARCH_NAME, renderOpNames, toolsForRole, type IntentRole, type IntentTool } from './intent-table.js';
-import { toolAccess, type ToolAccess } from './access.js';
+import { ALIAS_WINDOW, ALIASES, INTENT_TOOLS, MEMBER_TEXT_OPS, PLAIN_TEXT_ARG, TOOL_SEARCH_NAME, renderOpNames, toolsForRole, type IntentRole, type IntentTool } from './intent-table.js';
+import { ANY_KEY_WORDS, toolAccess, type ToolAccess } from './access.js';
+import { withPlainText } from './client.js';
+import { matchWay, wayByKey, wayNumber, WAYS_ROLES, type WaysRole } from './ways.js';
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 type Handler = (args: Record<string, unknown>, extra: unknown) => Promise<ToolResult> | ToolResult;
@@ -94,17 +96,30 @@ function accessWords(op: Op | undefined, toolKeyed: boolean): string {
 export function toolKeySentence(t: IntentTool, ops: Map<string, Op>): string | null {
   const used = t.actions.map((a) => ops.get(a.op)).filter((o): o is Op => Boolean(o));
   if (!used.length || used.some((o) => o.keyless)) return null;
+  // CB-838: the event feed and webhooks take any member key (buyer, seller or warehouse) with Orders.
+  if (used.every((o) => o.access.anyKey)) return 'Needs a key. Any member key reaches it: buyer, seller or warehouse.';
   const roles = [...new Set(used.map((o) => o.access.role))];
   if (roles.length !== 1) return 'Needs a key.';
   return roles[0] === 'buyer' ? 'Needs a buyer key (a seller or warehouse key also reaches it).' : `Needs a ${roles[0]} key.`;
 }
 
+/** SPEC-84: the most characters a tool description may have. */
+export const DESCRIPTION_BUDGET = 1500;
+
 export function describeIntent(t: IntentTool, ops: Map<string, Op>): string {
   const key = toolKeySentence(t, ops);
   const head = key ? `${key} ${t.lead}` : t.lead;
-  const lines = t.actions.map((a) => `- ${a.action} (${accessWords(ops.get(a.op), Boolean(key))}): ${a.line}.`);
+  const access = t.actions.map((a) => accessWords(ops.get(a.op), Boolean(key)));
   const def = t.defaultAction ? ` Without action it runs ${t.defaultAction}.` : '';
-  return `${head}\nActions (the activity each needs):\n${lines.join('\n')}\nSend action and its arguments.${def}`;
+  const frame = (actionsHead: string, lines: string[]) => `${head}\n${actionsHead}\n${lines.join('\n')}\nSend action and its arguments.${def}`;
+  const flat = frame('Actions (the activity each needs):', t.actions.map((a, i) => `- ${a.action} (${access[i]}): ${a.line}.`));
+  if (flat.length <= DESCRIPTION_BUDGET) return flat;
+  // CB-896: a tool with many actions lists them under the activity they need, each activity named once (first seen,
+  // first listed). The longer line of each action is in the action argument of the input schema.
+  const groups = new Map<string, string[]>();
+  t.actions.forEach((a, i) => groups.set(access[i], [...(groups.get(access[i]) ?? []), `- ${a.action}: ${a.line}.`]));
+  const lines = [...groups].flatMap(([w, l]) => [`${w[0].toUpperCase()}${w.slice(1)}:`, ...l]);
+  return frame('Actions, by the activity they need:', lines);
 }
 
 function annotationsOf(t: IntentTool, ops: Map<string, Op>): Annotations {
@@ -167,10 +182,13 @@ function buildIntentJsonSchema(t: IntentTool, present: IntentTool['actions'], op
     action: {
       type: 'string',
       enum: present.map((a) => a.action),
-      description: t.defaultAction ? `The action to run (${t.defaultAction} when left out).` : 'The action to run.',
+      description: `${t.defaultAction ? `The action to run (${t.defaultAction} when left out).` : 'The action to run.'}${actionDetails(present)}`,
       ...(t.defaultAction ? { default: t.defaultAction } : {}),
     },
   };
+  // SPEC-101: plain_text on the tools whose answers carry text another member wrote.
+  const textActions = present.filter((a) => MEMBER_TEXT_OPS.includes(a.op)).map((a) => a.action);
+  if (textActions.length) props.set(PLAIN_TEXT_ARG.name, { variants: new Map([['plain', { type: 'boolean', description: PLAIN_TEXT_ARG.description }]]), actions: textActions });
   for (const [k, { variants, actions }] of props) {
     const which = actions.length === present.length && present.length > 1 ? 'every action' : actions.join(', ');
     const list = [...variants.values()];
@@ -183,6 +201,12 @@ function buildIntentJsonSchema(t: IntentTool, present: IntentTool['actions'], op
     }
   }
   return { $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties, ...(t.defaultAction ? {} : { required: ['action'] }) };
+}
+
+/** CB-896: the longer line of each action that has one, after the action argument's first sentence. */
+function actionDetails(present: IntentTool['actions']): string {
+  const d = present.filter((a) => a.detail).map((a) => `${a.action}: ${a.detail}.`);
+  return d.length ? ` ${d.join(' ')}` : '';
 }
 
 /** The arguments of one action for tool_search: the properties and the required ones. */
@@ -200,7 +224,7 @@ function zodIssues(e: z.ZodError): string[] {
 
 /** Runs one action of an intent tool with the operation's own schema and handler. */
 async function runAction(t: IntentTool, ops: Map<string, Op>, args: Record<string, unknown>, extra: unknown): Promise<ToolResult> {
-  const { action: raw, ...rest } = args ?? {};
+  const { action: raw, plain_text: plain, ...rest } = args ?? {};
   const action = typeof raw === 'string' && raw ? raw : t.defaultAction;
   const actions = t.actions.map((a) => a.action);
   const act = t.actions.find((a) => a.action === action);
@@ -212,11 +236,13 @@ async function runAction(t: IntentTool, ops: Map<string, Op>, args: Record<strin
     return errorResult({ error: 'not_for_this_key', tool: t.name, action: act.action, detail: `${t.name} action ${act.action} is not reached by this key's member kind.` });
   }
   const parsed = z.object(op.shape).safeParse(rest);
-  if (!parsed.success) {
+  if (!parsed.success || (plain !== undefined && typeof plain !== 'boolean')) {
     const schema = actionArguments(op);
-    return errorResult({ error: 'invalid_arguments', tool: t.name, action: act.action, detail: zodIssues(parsed.error), arguments: Object.keys(schema?.properties ?? {}), required: schema?.required ?? [] });
+    const detail = parsed.success ? [`${PLAIN_TEXT_ARG.name}: true or false`] : zodIssues(parsed.error);
+    return errorResult({ error: 'invalid_arguments', tool: t.name, action: act.action, detail, arguments: Object.keys(schema?.properties ?? {}), required: schema?.required ?? [] });
   }
-  const result = await op.cb(parsed.data as Record<string, unknown>, extra);
+  // SPEC-101: plain_text true asks the API for text=plain on every call this action makes.
+  const result = plain === true ? await withPlainText(() => op.cb(parsed.data as Record<string, unknown>, extra)) : await op.cb(parsed.data as Record<string, unknown>, extra);
   const ignored = Object.keys(rest).filter((k) => !(k in op.shape));
   if (!ignored.length) return result;
   return { ...result, content: [...result.content, text({ ignored_arguments: ignored, detail: `Not arguments of ${t.name} action ${act.action}; its arguments are ${Object.keys(op.shape).join(', ') || 'none'}.` })] };
@@ -263,10 +289,10 @@ function index(): SearchEntry[] {
   searchIndex ??= INTENT_TOOLS.flatMap((t) => {
     const context = new Set(searchTokens(`${t.title} ${t.lead}`));
     return t.actions.map((a) => {
-      const own = searchTokens(`${words(a.action)} ${a.line} ${a.words ?? ''} ${words(a.op)}`);
+      const own = searchTokens(`${words(a.action)} ${a.line} ${a.detail ?? ''} ${a.words ?? ''} ${words(a.op)}`);
       // Phrases come from the reader words only; the 0.3 name counts as words and as a direct match.
-      const seqs = [words(a.action), a.line, a.words ?? ''].map(allTokens);
-      return { tool: t, action: a.action, op: a.op, line: a.line, own: new Set(own), seqs, context, name: searchTokens(words(a.action)) };
+      const seqs = [words(a.action), a.line, a.detail ?? '', a.words ?? ''].map(allTokens);
+      return { tool: t, action: a.action, op: a.op, line: a.detail ?? a.line, own: new Set(own), seqs, context, name: searchTokens(words(a.action)) };
     });
   });
   return searchIndex;
@@ -291,6 +317,30 @@ function phraseRun(q: string[], seqs: string[][]): number {
 const COST_WORDS = /\b(cheaper|pay less|what (?:we|i|they) pay|lower (?:what|our|my) |reduce|cut (?:our|my|the) |save|saving|savings|spend|spending|overpay|overpaying|supply costs?|supplies|supply prices?|vendor|vendors|supplier|suppliers|invoice|invoices)\b/;
 const BUY_WORDS = /\b(quote|quotes|quoting|buy|buying|purchase|purchasing|price|prices|pricing|rfq|source|sourcing)\b/;
 
+/** CB-958: an owner stating a situation ("I have a garage full of used tools", "we need 2,000 cases of tape"). */
+const SITUATION_RE = /\b(i|we|my|our|ive|weve|im|were)\b/;
+const asWaysRole = (r: ConnectionRole | null): WaysRole | null => (r && (WAYS_ROLES as readonly string[]).includes(r) ? (r as WaysRole) : null);
+
+/**
+ * CB-958: the way of the situation map that plain words point to, with the call that reads it, or null. tool_search
+ * answers it beside the matches, so an agent lands on the way (its steps, cost and what waits for the owner).
+ */
+export function wayForQuery(query: string, role: ConnectionRole | null = null): Record<string, unknown> | null {
+  const m = matchWay(query, asWaysRole(role));
+  const w = m ? wayByKey(m.key) : undefined;
+  if (!m || !w) return null;
+  return {
+    role: m.role,
+    key: m.key,
+    number: wayNumber(m.key),
+    name: w.name,
+    for: w.for,
+    steps: w.steps.map((s) => `${s.tool} action ${s.action}`),
+    available: w.steps.length > 0,
+    call: { name: 'commercebook_capabilities', arguments: { action: 'ways', role: m.role, situation: query } },
+  };
+}
+
 export interface SearchMatch { tool: string; action: string; score: number; what: string }
 /** The best tool and action for plain words (pure; QA and the tool share it). */
 export function searchIntents(query: string, role: ConnectionRole | null = null, limit = 3): SearchMatch[] {
@@ -302,6 +352,8 @@ export function searchIntents(query: string, role: ConnectionRole | null = null,
   // "quote a request" is a seller answering a buyer, never a buyer asking for a price.
   const buyWords = BUY_WORDS.test(lower) && !/\bquote\s+(?:a|an|the|this|that|their|one|buyer'?s?)\s+(?:buyer'?s?\s+)?(?:request|requests|intent)\b/.test(lower);
   const askQuotes = /\b(get|ask for|request|need|want|collect)\s+(a\s+|some\s+)?quotes?\b/.test(lower) && !/\bmy request\b|\breceived\b/.test(lower);
+  // CB-958: a stated situation ("I have a garage full of used tools") is answered first by the ways that fit it.
+  const situation = SITUATION_RE.test(lower.replace(/[’']/g, '')) && matchWay(query, asWaysRole(role)) !== null;
   const scored = index().map((e) => {
     let score = 0;
     for (const w of qs) score += e.own.has(w) ? 2 : e.context.has(w) ? 0.5 : 0;
@@ -317,6 +369,7 @@ export function searchIntents(query: string, role: ConnectionRole | null = null,
     if (score > 0 && e.name.length && e.name.every((w) => qs.has(w))) score += 0.5;
     // SPEC-85: asking for quotes on a thing is posting a request (sellers quote it), not reading the quotes received.
     if (askQuotes && e.tool.name === 'commercebook_requests' && e.action === 'post') score += 1.5;
+    if (situation && e.tool.name === 'commercebook_capabilities' && e.action === 'ways') score += 4;
     // SPEC-85: plain cost wording ("lower what we pay for stretch wrap", "cheaper supplies") is a warehouse's supply costs.
     if (costWords && (!role || role === 'warehouse' || role === 'all') && e.tool.name === 'commercebook_costs') score += 3;
     // SPEC-85: without a role, buying words ("quote", "buy", "price") prefer what a buyer does to a warehouse's trade.
@@ -386,7 +439,7 @@ export function registerSurface(server: McpServer, ops: Map<string, Op>, options
     TOOL_SEARCH_NAME,
     {
       title: 'Find the tool for a task',
-      description: `Plain words to the tool and action that do it, with the arguments: for example "ship an order", "post a request", "watch a category". No key needed. role (buyer, seller, warehouse or all) ranks that role's tools first. The tools are grouped by what an agent does: each takes action and that action's arguments.`,
+      description: `Plain words to the tool and action that do it, with the arguments: for example "ship an order", "post a request", "watch a category". The owner's situation in plain words ("I have a garage full of used tools") also answers way, the way to sell or buy that fits it. No key needed. role (buyer, seller, warehouse or all) ranks that role's tools first. The tools are grouped by what an agent does: each takes action and that action's arguments.`,
       inputSchema: SEARCH_SHAPE,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -402,7 +455,7 @@ export function registerSurface(server: McpServer, ops: Map<string, Op>, options
           tool: m.tool,
           action: m.action,
           what: m.what,
-          needs: op ? (op.keyless ? 'no key' : `a ${op.access.role} key${op.access.activity ? ` with ${op.access.activity}: Can ${op.access.level}` : ''}`) : 'another kind of key',
+          needs: op ? (op.keyless ? 'no key' : `${op.access.anyKey ? ANY_KEY_WORDS : `a ${op.access.role} key`}${op.access.activity ? ` with ${op.access.activity}: Can ${op.access.level}` : ''}`) : 'another kind of key',
           endpoint: op?.access.endpoint ?? null,
           arguments: args?.properties ?? {},
           required: args?.required ?? [],
@@ -411,9 +464,11 @@ export function registerSurface(server: McpServer, ops: Map<string, Op>, options
           score: m.score,
         };
       });
+      // CB-958: the way of the situation map the words point to, when they state one.
+      const way = wayForQuery(query, r ?? null);
       const answer = matches.length
-        ? { query, matches }
-        : { query, matches: [], detail: 'No tool matched these words. Try a verb and a thing, for example "post a request" or "ship an order"; tools/list with role all lists every tool.' };
+        ? { query, matches, ...(way ? { way } : {}) }
+        : { query, matches: [], ...(way ? { way } : {}), detail: 'No tool matched these words. Try a verb and a thing, for example "post a request" or "ship an order"; tools/list with role all lists every tool.' };
       return { content: [{ type: 'text' as const, text: JSON.stringify(answer, null, 2) }] };
     },
   );
@@ -422,11 +477,15 @@ export function registerSurface(server: McpServer, ops: Map<string, Op>, options
   for (const op of ops.values()) {
     if (intentNames.has(op.name)) continue;
     const note = deprecatedUse(op.name);
+    // SPEC-101: the 0.3 names of the reads that carry member-written text take plain_text too.
+    const texts = MEMBER_TEXT_OPS.includes(op.name);
+    const shape = texts ? { ...op.shape, [PLAIN_TEXT_ARG.name]: z.boolean().optional().describe(PLAIN_TEXT_ARG.description) } : op.shape;
     server.registerTool(
       op.name,
-      { title: op.title, description: op.description, inputSchema: op.shape, ...(op.annotations ? { annotations: op.annotations } : {}) },
+      { title: op.title, description: op.description, inputSchema: shape, ...(op.annotations ? { annotations: op.annotations } : {}) },
       async (args: Record<string, unknown>, extra: unknown) => {
-        const result = await op.cb(args, extra);
+        const { [PLAIN_TEXT_ARG.name]: plain, ...rest } = args ?? {};
+        const result = texts && plain === true ? await withPlainText(() => op.cb(rest, extra)) : await op.cb(texts ? rest : args, extra);
         return note ? { ...result, content: [...result.content, text(note)] } : result;
       },
     );

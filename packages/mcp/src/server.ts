@@ -6,6 +6,7 @@ import { registerShippingTools } from './shipping-tools.js';
 import { registerCatalogImportTools } from './catalog-import-tools.js';
 import { registerCrmFactsTools } from './crm-facts-tools.js';
 import { registerLeadIntakeTools } from './lead-intake-tools.js';
+import { registerLeadShareTools } from './lead-share-tools.js';
 import { registerAgentLimitsTools } from './agent-limits-tools.js';
 import { registerAgentRulesTools } from './agent-rules-tools.js';
 import { registerLeadsTableTools } from './leads-table-tools.js';
@@ -20,13 +21,19 @@ import { registerFeedbackBoardTools } from './feedback-board-tools.js';
 import { registerIntentKeylessTools, registerIntentTools } from './intent-tools.js';
 import { registerBookTools } from './book-tools.js';
 import { registerShopifyTools } from './shopify-tools.js';
+import { registerProductDocsTools } from './product-docs-tools.js';
 import { registerReachSellerTools, registerReachTools } from './reach-tools.js';
 import { registerCapabilitiesTools } from './capabilities-tools.js';
+import { registerEventsTools } from './events-tools.js';
+import { registerAuctionKeylessTools, registerAuctionTools } from './auction-tools.js';
+import { registerCheckoutSessionTools } from './checkout-session-tools.js';
+import { registerWorkQueueTools } from './work-queue-tools.js';
+import { registerServiceKeylessTools, registerServiceTools } from './service-tools.js';
 import { needsKeyAnswer, toolAccess } from './access.js';
 import { collector, opFrom, parseRole, registerSurface, type ConnectionRole, type Op } from './intent-surface.js';
 
 export const SERVER_NAME = 'commercebook';
-export const SERVER_VERSION = '0.4.1';
+export const SERVER_VERSION = '0.5.0';
 /** SPEC-36: the server's own description, one sentence in the documentation voice. */
 export const SERVER_DESCRIPTION =
   'CommerceBook (https://commercebook.ai) is a network of verified warehouses and the sellers who sell through them, and these tools, each grouping the actions an agent takes for one task, call its API as the member whose key is configured, with every call recorded on that member’s ledger and commercebook_start returning the member’s full briefing.';
@@ -39,6 +46,8 @@ function registerKeyed(server: McpServer, api: ApiClient): void {
   registerCatalogImportTools(server, api);
   registerCrmFactsTools(server, api);
   registerLeadIntakeTools(server, api);
+  // SPEC-110: share in one step, send to one warehouse.
+  registerLeadShareTools(server, api);
   registerAgentLimitsTools(server, api);
   registerAgentRulesTools(server, api);
   registerLeadsTableTools(server, api);
@@ -51,11 +60,23 @@ function registerKeyed(server: McpServer, api: ApiClient): void {
   registerBookTools(server, api);
   // SPEC-72: the seller's Shopify channel.
   registerShopifyTools(server, api);
+  // SPEC-103: a product's documents and published answers.
+  registerProductDocsTools(server, api);
   // SPEC-79: reach, the shipping estimate, and the seller's category watch.
   registerReachTools(server, api);
   registerReachSellerTools(server, api);
   // SPEC-80: every seller capability in one read (no key needed).
   registerCapabilitiesTools(server, api);
+  // SPEC-102: the event feed and webhooks per key.
+  registerEventsTools(server, api);
+  // CB-963: auctions with a reserve.
+  registerAuctionTools(server, api);
+  // CB-971: checkout sessions in the Agentic Commerce Protocol shape.
+  registerCheckoutSessionTools(server, api);
+  // CB-972: the warehouse work queue and the seller's read of it.
+  registerWorkQueueTools(server, api);
+  // CB-973: services with booking.
+  registerServiceTools(server, api);
 }
 
 export interface BuildOptions {
@@ -101,6 +122,10 @@ export function collectOps(api: ApiClient, options: Pick<BuildOptions, 'keyless'
     registerReachTools(free, api);
     // SPEC-80: the seller capabilities need no key; then every keyed operation, answering needs_key.
     registerCapabilitiesTools(free, api);
+    // CB-963: the open auctions and one auction need no key.
+    registerAuctionKeylessTools(free, api);
+    // CB-973: a service's open slots need no key.
+    registerServiceKeylessTools(free, api);
     const preview = collector(ops, (name, config) => {
       const op = opFrom(name, config, async () => ({ isError: true, content: [{ type: 'text', text: '' }] }), false);
       const answer = needsKeyAnswer(name, toolAccess(name, op.description));

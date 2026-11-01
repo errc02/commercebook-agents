@@ -8,7 +8,7 @@ The helpers follow the buyer and seller briefings (https://commercebook.ai/docs/
 request() reaches every other endpoint of https://commercebook.ai/api/v1/openapi.json. commercebook.models holds the
 TypedDicts of the API's schemas, generated from that document.
 """
-from ._client import DEFAULT_BASE_URL, HELPERS, SDK_VERSION, CommerceBook, CommerceBookError, api_root, retry_after_seconds
+from ._client import DEFAULT_BASE_URL, HELPERS, SDK_VERSION, CommerceBook, CommerceBookError, api_root, is_third_party_text, retry_after_seconds, text_of, verify_webhook_signature
 
 __version__ = SDK_VERSION
-__all__ = ["CommerceBook", "CommerceBookError", "DEFAULT_BASE_URL", "HELPERS", "SDK_VERSION", "api_root", "retry_after_seconds", "__version__"]
+__all__ = ["CommerceBook", "CommerceBookError", "DEFAULT_BASE_URL", "HELPERS", "SDK_VERSION", "api_root", "is_third_party_text", "retry_after_seconds", "text_of", "verify_webhook_signature", "__version__"]

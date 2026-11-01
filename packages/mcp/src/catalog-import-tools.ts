@@ -28,7 +28,7 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
 export function registerCatalogImportTools(server: McpServer, api: ApiClient): void {
   server.registerTool('commercebook_seller_catalog_import', {
     title: 'Import a catalog file or feed',
-    description: 'POST /seller/catalog/import: reads a Google Shopping XML or TSV feed, a Shopify products CSV, an eBay Seller Hub CSV or a products JSON (by url, or the file text as content) and previews (dry_run true) or writes the products, with created, updated and skipped rows and their reasons.',
+    description: 'POST /seller/catalog/import: reads a Google Shopping XML or TSV feed, a Shopify products CSV, an eBay Seller Hub CSV or a products JSON (by url, a feed read up to 10 MB, or the file text as content, up to 4.5 MB) and previews (dry_run true) or writes the products, with created, updated and skipped rows and their reasons.',
     inputSchema: {
       url: z.string().url().max(2000).optional().describe('A feed address to fetch now (http or https).'),
       content: z.string().optional().describe('The file text, when there is no URL.'),

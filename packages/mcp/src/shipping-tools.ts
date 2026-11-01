@@ -63,7 +63,7 @@ export function registerShippingTools(server: McpServer, api: ApiClient): void {
     async ({ order_id, ...b }) => run(() => api.post(`/seller/orders/${order_id}/shipping-actual`, b)));
   server.registerTool('commercebook_shipping_quote', {
     title: 'Shipping to a destination',
-    description: 'POST /shipping/quote: what an offer costs to ship and how many days, from the seller profile, with the goods at that quantity (goods_cents, total_cents), the processing line and the buyer total by payment method (card, ach, balance) and the quantity check (requested, available; ok false with reason quantity when the offer has fewer). A region the seller does not serve comes back refused with served_regions. Calculated shipping returns a rate_id for the market quote.',
+    description: 'POST /shipping/quote: what an offer costs to ship and how many days, from the seller profile, with the goods at that quantity (goods_cents, total_cents), the buyer total by payment method (card, ach, balance; the same price with shipping for each, since the seller pays the processing fee) and the quantity check (requested, available; ok false with reason quantity when the offer has fewer). A region the seller does not serve comes back refused with served_regions. Calculated shipping returns a rate_id for the market quote.',
     inputSchema: {
       offer_id: UUID, qty: z.number().int().min(1).optional(), service: SERVICE.optional(),
       destination: z.union([z.string().min(2).max(300), z.object({ country: z.string().optional(), state: z.string().optional(), zip: z.string().optional(), residential: z.boolean().optional() })]).describe('TX, US-TX, 77043, an address line, or {country, state, zip, residential}.'),

@@ -1,7 +1,7 @@
 {
   "name": "@commercebook/mcp",
-  "version": "0.4.1",
-  "description": "MCP server for CommerceBook, a network of verified warehouses and the sellers who sell through them. Without a key it reads the market and the open requests; with the member's key it works the account, every call on the owner's ledger.",
+  "version": "0.5.0",
+  "description": "MCP server for CommerceBook, a market where your agent can buy and sell anything.",
   "license": "MIT",
   "type": "module",
   "bin": {

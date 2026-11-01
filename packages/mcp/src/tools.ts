@@ -74,6 +74,10 @@ export const SELLER_TOOL_NAMES = [
   'commercebook_seller_order_cancel', 'commercebook_seller_disputes', 'commercebook_seller_dispute_reply',
   'commercebook_seller_policies_get', 'commercebook_seller_policies_update', 'commercebook_seller_statement', 'commercebook_seller_performance',
   'commercebook_seller_delegations', 'commercebook_seller_delegation_request', 'commercebook_seller_events',
+  // CB-865: the messages shoppers and members send the seller.
+  'commercebook_seller_threads', 'commercebook_seller_thread_get', 'commercebook_seller_thread_reply', 'commercebook_seller_thread_respond', 'commercebook_seller_thread_read',
+  // CB-723: own-traffic pricing.
+  'commercebook_seller_own_traffic_link', 'commercebook_seller_own_traffic_stats',
 ] as const;
 
 const OPID = z.string().min(8).max(96).regex(/^[A-Za-z0-9_:-]+$/).optional().describe('Idempotency key; a retry with the same one returns the first answer.');
@@ -120,7 +124,7 @@ export function registerSellerTools(server: McpServer, api: ApiClient): void {
     {
       title: 'Load the catalog',
       description:
-        'POST /seller/catalog/upsert: up to 500 records of the CommerceBook product data template v1.1 (ACP field names: item_id, title, description, brand, category, condition, price, currency, availability, inventory_quantity, inventory_as_of, image_link, enable_checkout, title_holder, ...). Run with dry_run true first to see created, changed and skipped with reasons, then without it to write. ship_from names the ship-from address of a seller-held product by the label or id of one of your addresses (commercebook_seller_ship_from_list); blank follows your default, and an unknown label skips the record with reason ship_from_unknown and your labels. shipping_methods (pickup, ship, ltl, parcel; channels is its older name and still read) says how the goods reach the buyer. feed_opt_out true keeps the product out of the outside feeds (Google Merchant, the agent product feed), as the lot page checkbox does. price_on_request true lists the product with no public price ("Quote on request"): buyers post a request and you quote it; the price you send stays private. Products go on sale when selling is on (you are live) and enable_checkout is true; before that they load as drafts. Price by quantity: offer {price_mode: schedule, schedule_kind, price_schedule [{min_qty, unit_price_cents}, ...]} on a record; price may then be left out (the first tier is the unit price). ' + PRICE_SCHEDULE_TEXT.volume + ' ' + PRICE_SCHEDULE_TEXT.graduated + ' A bad schedule refuses the call with 400 invalid_input, detail price_schedule: <reason>.',
+        'POST /seller/catalog/upsert: up to 500 records of the CommerceBook product data template v1.1 (ACP field names: item_id, title, description, brand, category, condition, price, currency, availability, inventory_quantity, inventory_as_of, image_link, enable_checkout, title_holder, ...). Run with dry_run true first to see created, changed and skipped with reasons, then without it to write. ship_from names the ship-from address of a seller-held product by the label or id of one of your addresses (commercebook_seller_ship_from_list); blank follows your default, and an unknown label skips the record with reason ship_from_unknown and your labels. shipping_methods (pickup, ship, ltl, parcel; channels is its older name and still read) says how the goods reach the buyer. feed_opt_out true keeps the product out of the outside feeds (Google Merchant, the agent product feed), as the lot page checkbox does. price_on_request true lists the product with no public price ("Quote on request"): buyers post a request and you quote it; the price you send stays private. Products go on sale when selling is on (you are live) and enable_checkout is true; before that they load as drafts. large_item true makes a product a large item whatever its package (a package over 150 lb, with a side over 108 in, or over 165 in in length plus girth is large without it); a large item gets no parcel rate, and buyers read "Pickup free in <city>" when pickup is on, else "Large item: delivery quoted at checkout". two_person_handling true says it takes two people to handle. Both are yes or no and leave a product as it is when absent. Price by quantity: offer {price_mode: schedule, schedule_kind, price_schedule [{min_qty, unit_price_cents}, ...]} on a record; price may then be left out (the first tier is the unit price). ' + PRICE_SCHEDULE_TEXT.volume + ' ' + PRICE_SCHEDULE_TEXT.graduated + ' A bad schedule refuses the call with 400 invalid_input, detail price_schedule: <reason>.',
       inputSchema: { records: z.array(CATALOG_RECORD).min(1).max(500), dry_run: z.boolean().optional(), operation_id: OPID },
     },
     async (a) => run(() => api.post('/seller/catalog/upsert', a)),
@@ -139,7 +143,7 @@ export function registerSellerTools(server: McpServer, api: ApiClient): void {
   );
   server.registerTool('commercebook_seller_orders', { title: 'My orders', description: 'GET /seller/orders: orders of your products, newest first.', inputSchema: { ...page, status: z.enum(ORDER_STATUS).optional() } }, async (a) => run(() => api.get('/seller/orders', a)));
   server.registerTool('commercebook_seller_order_get', { title: 'One order', description: 'GET /seller/orders/{id}: the order with payment, fulfillment, disputes, refunds and transitions.', inputSchema: { order_id: UUID } }, async ({ order_id }) => run(() => api.get(`/seller/orders/${order_id}`)));
-  server.registerTool('commercebook_seller_order_release', { title: 'Release an order to ship', description: 'POST /seller/orders/{id}/release: releases an authorised order to ship. A shipped order over $500 needs evidence (the count and at least one photo link), else 409 release_evidence_required. You are paid 2 business days after delivery unless a dispute is open; shoppers have 30 days from delivery to file a dispute.', inputSchema: { order_id: UUID, evidence: RELEASE_EVIDENCE, operation_id: OPID } }, async ({ order_id, ...b }) => run(() => api.post(`/seller/orders/${order_id}/release`, b)));
+  server.registerTool('commercebook_seller_order_release', { title: 'Release an order to ship', description: 'POST /seller/orders/{id}/release: releases an authorised order to ship. A shipped order over $500 needs evidence (the count and at least one photo link), else 409 release_evidence_required. You are paid 2 business days after delivery unless a dispute is open; shoppers have 30 days from delivery to file a dispute. A pickup order (fulfillment_kind pickup) is handed over with the buyer\'s six-digit pickup_code: a wrong code answers 409 pickup_code_invalid with misses and attempts_left, and the fifth wrong code locks the order for an operator (409 pickup_locked). Send a new operation_id for each attempt.', inputSchema: { order_id: UUID, evidence: RELEASE_EVIDENCE, pickup_code: z.string().regex(/^\d{6}$/).optional().describe('The six digits the buyer reads from their order at the pickup (CB-888).'), operation_id: OPID } }, async ({ order_id, ...b }) => run(() => api.post(`/seller/orders/${order_id}/release`, b)));
   server.registerTool(
     'commercebook_seller_order_ship',
     { title: 'Ship an order', description: 'POST /seller/orders/{id}/ship: marks a released order shipped (with carrier and tracking) or picked up. buy_label true buys the label for the quoted service at the live price from your balance instead, and writes the carrier and tracking (label_url: a 10-minute link to the PDF); send it without carrier or tracking. Past the key\u2019s confirm amount or 30-day cap it answers 202 pending_owner_confirmation and waits for the owner.', inputSchema: { order_id: UUID, kind: z.enum(['shipped', 'picked_up']).optional(), carrier: z.string().max(80).optional(), tracking: z.string().max(120).optional(), buy_label: z.boolean().optional(), operation_id: OPID } },
@@ -167,7 +171,10 @@ export function registerSellerTools(server: McpServer, api: ApiClient): void {
     },
     async (a) => run(() => api.patch('/seller/policies', a)),
   );
-  server.registerTool('commercebook_seller_statement', { title: 'Payout statement', description: 'GET /seller/payouts/statement: proceeds after the fee, refund reversals, fee and processing lines by order (90 days by default).', inputSchema: { from: DATE.optional(), to: DATE.optional() } }, async (a) => run(() => api.get('/seller/payouts/statement', a)));
+  server.registerTool('commercebook_seller_statement', { title: 'Payout statement', description: 'GET /seller/payouts/statement: proceeds after the seller fee and the processing fee, refund reversals, and the fee and the processing fee with its method by order (90 days by default).', inputSchema: { from: DATE.optional(), to: DATE.optional() } }, async (a) => run(() => api.get('/seller/payouts/statement', a)));
+  // CB-723 (175): own-traffic pricing; the code is the seller's to hand out.
+  server.registerTool('commercebook_seller_own_traffic_link', { title: 'My own-traffic link', description: 'GET /seller/payouts/own-traffic: your own-traffic code and links (your store page, the market); ?via=<code> works on any CommerceBook address. An order through your link pays own_traffic_fee_pct instead of fee_pct, capped at fee_cap_cents; the buyer pays the same. With this month\'s orders and fee saved.', inputSchema: {} }, async () => run(() => api.get('/seller/payouts/own-traffic')));
+  server.registerTool('commercebook_seller_own_traffic_stats', { title: 'Orders through my link', description: 'GET /seller/payouts/own-traffic/stats: the orders through your own link by month, newest first, with the fee charged and the fee saved.', inputSchema: { months: z.number().int().min(1).max(24).optional() } }, async (a) => run(() => api.get('/seller/payouts/own-traffic/stats', a)));
   server.registerTool('commercebook_seller_performance', { title: 'My seller sheet', description: 'GET /seller/performance: the seller sheet, live, with the counts behind every rate.', inputSchema: {} }, async () => run(() => api.get('/seller/performance')));
   server.registerTool('commercebook_seller_delegations', { title: 'My warehouses', description: 'GET /seller/delegations: your warehouse agreements (delegations in the API) with the warehouses that store and ship for you, and their status.', inputSchema: {} }, async () => run(() => api.get('/seller/delegations')));
   server.registerTool(
@@ -179,6 +186,32 @@ export function registerSellerTools(server: McpServer, api: ApiClient): void {
     'commercebook_seller_events',
     { title: 'My ledger', description: 'GET /seller/events: what happened on your account, newest first, and whether your agent did it.', inputSchema: { ...page, agent_only: z.boolean().optional(), object_id: UUID.optional() } },
     async (a) => run(() => api.get('/seller/events', a)),
+  );
+  // CB-865: the seller's messages (the messages activity).
+  server.registerTool(
+    'commercebook_seller_threads',
+    { title: 'My messages', description: 'GET /seller/messages/threads: the conversations shoppers and members started with you, requests to you first, with unread counts.', inputSchema: { ...page } },
+    async (a) => run(() => api.get('/seller/messages/threads', a)),
+  );
+  server.registerTool(
+    'commercebook_seller_thread_get',
+    { title: 'Read a conversation', description: 'GET /seller/messages/threads/{id}: one conversation with its messages, oldest first.', inputSchema: { thread_id: UUID } },
+    async ({ thread_id }) => run(() => api.get(`/seller/messages/threads/${thread_id}`)),
+  );
+  server.registerTool(
+    'commercebook_seller_thread_reply',
+    { title: 'Answer a conversation', description: 'POST /seller/messages/threads/{id}: your reply, text only. A reply to a request accepts it.', inputSchema: { thread_id: UUID, body: z.string().min(1).max(4000) } },
+    async ({ thread_id, ...b }) => run(() => api.post(`/seller/messages/threads/${thread_id}`, b)),
+  );
+  server.registerTool(
+    'commercebook_seller_thread_respond',
+    { title: 'Accept or ignore a request', description: 'POST /seller/messages/threads/{id}/respond: accept true opens the conversation; false ignores it (the sender is not told).', inputSchema: { thread_id: UUID, accept: z.boolean() } },
+    async ({ thread_id, ...b }) => run(() => api.post(`/seller/messages/threads/${thread_id}/respond`, b)),
+  );
+  server.registerTool(
+    'commercebook_seller_thread_read',
+    { title: 'Mark a conversation read', description: 'POST /seller/messages/threads/{id}/read: clears the conversation\u2019s unread count.', inputSchema: { thread_id: UUID } },
+    async ({ thread_id }) => run(() => api.post(`/seller/messages/threads/${thread_id}/read`, {})),
   );
 }
 
@@ -234,8 +267,8 @@ export function registerTools(server: McpServer, api: ApiClient): void {
         need: z.string().max(2000).optional(),
         title: z.string().min(1).max(80).optional().describe('The title buyers see first; generated from the services, location and volume band when left out'),
         summary_short: z.string().min(1).max(140).optional().describe('One short line under the title, such as Short-term plywood, one container; the first sentence of the need when left out'),
-        lead_source: z.enum(['own', 'referral']).optional().describe('own (default): the lead came to you directly; referral: a lead company referred it'),
-        referral_source: z.string().max(60).optional().describe('The lead company that referred it, such as Fulfill.com'),
+        lead_source: z.enum(['own', 'referral', 'vendor', 'event', 'outreach', 'other']).optional().describe('Where the lead came from, shown to buyers as Source: own (default, your own website or inbound), referral, vendor (a paid lead vendor), event (an event or trade show), outreach (cold outreach) or other'),
+        referral_source: z.string().max(60).optional().describe('The name that goes with lead_source: the vendor (required for vendor, such as Fulfill.com), who referred it, or the event'),
         service: z.string().max(80).optional(),
         market: z.string().max(120).optional().describe('City, ST'),
         markets: z.array(z.string().min(1).max(120)).max(10).optional().describe('Several locations, each City, ST, in order; the first is the primary'),

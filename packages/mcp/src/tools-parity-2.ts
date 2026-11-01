@@ -33,6 +33,8 @@ export const PARITY2_TOOL_NAMES = [
   // SPEC-91 (124): the stars of a bought lead and what your leads earned.
   'commercebook_lead_stars', 'commercebook_lead_mark', 'commercebook_lead_earnings', 'commercebook_lead_statement', 'commercebook_claims_list', 'commercebook_claim_outcome',
   'commercebook_claim_defect',
+  // CB-901 (153): your sold prices by stated source, and a member's lead scorecard.
+  'commercebook_lead_source_prices', 'commercebook_member_lead_scorecard',
   'commercebook_deal_get', 'commercebook_deal_delete', 'commercebook_deal_note_add', 'commercebook_crm_import',
   'commercebook_capacity_accept', 'commercebook_capacity_quote_withdraw', 'commercebook_capacity_request_withdraw',
   'commercebook_thread_respond', 'commercebook_thread_read', 'commercebook_thread_mute', 'commercebook_thread_report', 'commercebook_member_block',
@@ -68,8 +70,8 @@ export function registerParity2Tools(server: McpServer, api: ApiClient): void {
   tool(
     'commercebook_lead_text',
     'Change a lead title, summary or source',
-    'PATCH /leads/{id}/text: the title (80 characters), the one-line summary (140) and where the lead came from (lead_source own or referral, referral_source the lead company) of your draft or open lead. Fields left out stay as they are; the title and the summary must not name the shipper.',
-    { lead_id: UUID, title: z.string().min(1).max(80).optional(), summary_short: z.string().min(1).max(140).optional(), lead_source: z.enum(['own', 'referral']).optional(), referral_source: z.string().max(60).optional() },
+    'PATCH /leads/{id}/text: the title (80 characters), the one-line summary (140) and where the lead came from (lead_source: own, referral, vendor, event, outreach or other; referral_source: the name that goes with it, required for vendor) of your draft or open lead. Fields left out stay as they are; the title and the summary must not name the shipper.',
+    { lead_id: UUID, title: z.string().min(1).max(80).optional(), summary_short: z.string().min(1).max(140).optional(), lead_source: z.enum(['own', 'referral', 'vendor', 'event', 'outreach', 'other']).optional(), referral_source: z.string().max(60).optional() },
     ({ lead_id, ...b }) => api.patch(`/leads/${lead_id}/text`, b),
   );
   // SPEC-75 (107): Add details on a My Listings card.
@@ -103,6 +105,7 @@ export function registerParity2Tools(server: McpServer, api: ApiClient): void {
   tool('commercebook_lead_rate', 'Rate a bought lead', 'POST /leads/{id}/rating: rates a lead you bought as_described or overstated, once.', { lead_id: UUID, rating: z.enum(['as_described', 'overstated']) }, ({ lead_id, rating }) => api.post(`/leads/${lead_id}/rating`, { rating }));
   tool('commercebook_lead_stars', 'Give a bought lead stars', 'POST /leads/{id}/stars: gives a lead you bought 1 to 5 stars, once, within 30 days of the purchase. The stars count toward the rating of the poster.', { lead_id: UUID, stars: z.number().int().min(1).max(5) }, ({ lead_id, stars }) => api.post(`/leads/${lead_id}/stars`, { stars }));
   tool('commercebook_lead_mark', 'Pass on a lead or save it', 'POST /leads/{id}/mark: pass lists the lead last on your exchange, save keeps it under Saved, null clears the mark. Your own note on another member\u2019s lead; every role may mark.', { lead_id: UUID, mark: z.enum(['pass', 'save']).nullable() }, ({ lead_id, mark }) => api.post(`/leads/${lead_id}/mark`, { mark }));
+  tool('commercebook_lead_source_prices', 'Your sold prices by source', 'GET /leads/source-prices: your paid, unrefunded sales per stated source (a paid lead vendor per vendor name): how many, the low, median and high price and the last sale. Guidance for pricing your next lead; nothing reprices a lead.', {}, () => api.get('/leads/source-prices'));
   tool('commercebook_lead_earnings', 'What your leads earned', 'GET /leads/earnings: one row per lead you posted with sales, the fee, your proceeds, the part held and the part paid out, and the totals.', {}, () => api.get('/leads/earnings'));
   tool(
     'commercebook_lead_statement',
@@ -144,7 +147,8 @@ export function registerParity2Tools(server: McpServer, api: ApiClient): void {
   tool('commercebook_unread_count', 'Unread count', 'GET /messages/unread: how many messages wait unread.', {}, () => api.get('/messages/unread'));
 
   // Network
-  tool('commercebook_member_get', 'Read a member', 'GET /network/members/{id}: one member’s public card with facilities, node, rate card and record.', { member_id: UUID }, ({ member_id }) => api.get(`/network/members/${member_id}`));
+  tool('commercebook_member_get', 'Read a member', 'GET /network/members/{id}: one member’s public card with facilities, node, rate card, record and lead scorecard.', { member_id: UUID }, ({ member_id }) => api.get(`/network/members/${member_id}`));
+  tool('commercebook_member_lead_scorecard', 'Read a lead scorecard', 'GET /network/members/{id}/lead-scorecard: how a member’s leads turned out, from outcomes only: posted, sold, sales, ratings as described, confirmed defects, refunds and strikes, overall and per stated source. A rate is null under 3 in its count.', { member_id: UUID }, ({ member_id }) => api.get(`/network/members/${member_id}/lead-scorecard`));
   tool('commercebook_delegations', 'Warehouse agreement requests', 'GET /network/delegations: sellers asking your warehouse for a warehouse agreement (a delegation in the API) to store and ship their goods.', { ...page }, (a) => api.get('/network/delegations', a));
   tool('commercebook_delegation_respond', 'Answer a warehouse agreement request', 'POST /network/delegations/{id}/respond: accepts or declines a seller’s request for a warehouse agreement.', { delegation_id: UUID, accept: z.boolean() }, ({ delegation_id, accept }) => api.post(`/network/delegations/${delegation_id}/respond`, { accept }));
   tool('commercebook_delegation_end', 'End a warehouse agreement', 'POST /network/delegations/{id}/end: ends a warehouse agreement; the products stored under it stop selling.', { delegation_id: UUID }, ({ delegation_id }) => api.post(`/network/delegations/${delegation_id}/end`, {}));
@@ -158,7 +162,7 @@ export function registerParity2Tools(server: McpServer, api: ApiClient): void {
     { phone: z.string().max(30).nullable().optional(), phone_visibility: z.enum(['members', 'public', 'hidden']).optional(), message_notify: z.enum(['immediate', 'daily', 'none']).optional() },
     (a) => api.patch('/settings/contact', a),
   );
-  tool('commercebook_agent_limits', 'Key limits', 'GET /agent/limits: the money ceilings and approval areas on this key, today’s spend and the approvals not yet used.', {}, () => api.get('/agent/limits'));
+  tool('commercebook_agent_limits', 'Key limits', 'GET /agent/limits: the money ceilings and approval areas on this key, today’s spend, the 30-day cap and the monthly budget with what was spent this month and what remains, and the approvals not yet used.', {}, () => api.get('/agent/limits'));
 
   // Seller sign-up steps except Stripe
   tool('commercebook_seller_entity_get', 'Business details', 'GET /seller/entity: your business details, what they still need and readiness.', {}, () => api.get('/seller/entity'));

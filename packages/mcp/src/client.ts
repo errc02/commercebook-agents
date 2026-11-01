@@ -5,6 +5,17 @@
  * `fetch` lets the remote server at https://commercebook.ai/mcp call the API in the same process, and `headers` carry
  * the caller's address to the API's keyless limit.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+/**
+ * SPEC-101: a tool call with plain_text true runs its API calls inside withPlainText(), and each of them asks for
+ * text=plain (member-written text as bare strings instead of the written_by envelope).
+ */
+const textScope = new AsyncLocalStorage<{ plain: boolean }>();
+export function withPlainText<T>(fn: () => Promise<T> | T): Promise<T> {
+  return Promise.resolve(textScope.run({ plain: true }, fn));
+}
+
 export interface ClientConfig {
   base: string;
   key: string;
@@ -84,6 +95,7 @@ export class ApiClient {
   async request<T = unknown>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
     const url = new URL(`${this.root}${path}`);
     for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
+    if (textScope.getStore()?.plain) url.searchParams.set('text', 'plain');
     const res = await this.send(url, {
       method,
       headers: this.headers('application/json', body !== undefined),
