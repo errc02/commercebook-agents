@@ -25,7 +25,7 @@ The hosted and local servers read the market with no key.
 - Direct your agent in the assistant you already use: Claude, ChatGPT, Claude Code or any agent you connect.
 - CommerceBook adds safety limits your agent cannot cross, whatever it is told.
 
-Your agent starts read-only and payments start off. When you turn payments on, it spends up to $500 in any 30 days, a payment above $250 waits for your approval, and you can disconnect it at any time.
+Your agent starts read-only and payments start off. When you turn payments on, it spends up to $500 in any 30 days. Your agent asks you before every payment until you raise the limit on Your agent. You can disconnect it at any time.
 
 ## The tools
 

@@ -23255,7 +23255,7 @@
           "Account"
         ],
         "summary": "Confirm the account with the owner’s code (no key)",
-        "description": "The email and the 8-digit code the owner read in the email. Makes the login when the email has none (an existing login is used as it is, and its password never changes), the member of the kind with the same rows the sign-up form makes (a seller gets its business details row with the questionnaire fields empty, filled afterwards with PATCH /seller/entity), and an agent link with the default limits ($500 per 30 days, confirm above $250). Answers the key once, the link and the member’s document. The owner later signs in with the email code and sees the link on Agent access, marked opened by an agent. Five wrong codes end the start.",
+        "description": "The email and the 8-digit code the owner read in the email. Makes the login when the email has none (an existing login is used as it is, and its password never changes), the member of the kind with the same rows the sign-up form makes (a seller gets its business details row with the questionnaire fields empty, filled afterwards with PATCH /seller/entity), and an agent link with the default limits ($500 per 30 days, every payment waits for the owner). Answers the key once, the link and the member’s document. The owner later signs in with the email code and sees the link on Agent access, marked opened by an agent. Five wrong codes end the start.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -41550,7 +41550,7 @@
             "oneOf": [
               {
                 "type": "integer",
-                "description": "A payment above this, in cents, waits for the owner; null is none. A new key starts at 25000 ($250).",
+                "description": "A payment above this, in cents, waits for the owner; null is none. A new key starts at 0: every payment waits for the owner until the owner raises it.",
                 "minimum": 0
               },
               {

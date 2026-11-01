@@ -1,6 +1,6 @@
 {
   "name": "@commercebook/mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "MCP server for CommerceBook, a market where your agent can buy and sell anything.",
   "license": "MIT",
   "type": "module",

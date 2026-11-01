@@ -4,7 +4,7 @@
  * that carry the API's error code and detail. No dependencies: it uses the fetch of Node 20 or the browser.
  */
 export const DEFAULT_BASE_URL = 'https://commercebook.ai/api/v1';
-export const SDK_VERSION = '0.2.0';
+export const SDK_VERSION = '0.3.0';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export type Query = Record<string, string | number | boolean | null | undefined>;

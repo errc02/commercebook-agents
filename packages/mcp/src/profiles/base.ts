@@ -1,11 +1,13 @@
 /**
  * CB-977 (SPEC-131): the base profile (research record, section 3) and the field helpers the modules and overlays use.
  * Every listing in every category carries the base profile. The base fields that publishing waits for are the ones
- * CommerceBook already required before this card (title, condition, price, a photo); the fields Google Merchant Center
+ * CommerceBook already required before this card (title, condition, price, a photo; CB-997: the photo only without a valid
+ * UPC, EAN or GTIN-14); the fields Google Merchant Center
  * or the ACP feed needs are marked feed, so the agent asks for them and the product still publishes without them.
  * Pure: no I/O.
  */
 import type { Condition, Declaration, FieldType, ProfileField, Requirement } from './types.js';
+import { PHOTO_RULE } from '../definition.js';
 
 /** The fact path of a spec key (a Shopify handle or a cb_ key). */
 export const spec = (key: string): string => `specs.${key}`;
@@ -74,7 +76,11 @@ export const BASE_FIELDS: ProfileField[] = [
   f('known_defects', 'Known defects', 'text', 'conditional', 'Policy 06', {
     path: 'lot.known_defects', scope: 'lot', when: eq('lot.condition_grade', 'defective'), whenText: 'when the item is sold as defective',
   }),
-  f('photos', 'Photos', 'images', 'required', 'Google', { path: 'lot.photos', scope: 'lot', help: 'At least one photo, 500 x 500 px or larger. Used goods show the actual unit.' }),
+  // CB-997 (SPEC-144): a photo only when the product has no valid UPC, EAN or GTIN-14 (a buyer's agent resolves the code).
+  f('photos', 'Photos', 'images', 'required', 'Google', {
+    path: 'lot.photos', scope: 'lot', when: { path: 'product.gtin', op: 'no_valid_gtin' }, whenText: 'when the product has no valid UPC, EAN or GTIN-14',
+    help: `${PHOTO_RULE} Photos are 500 x 500 px or larger. Used goods show the actual unit.`,
+  }),
   f('weight_lb', 'Package weight', 'decimal', 'recommended', 'ACP; Google', { path: 'lot.dims.weight_lb', scope: 'lot', unit: 'lb' }),
   f('length_in', 'Package length', 'decimal', 'recommended', 'ACP; Google', { path: 'lot.dims.length_in', scope: 'lot', unit: 'in' }),
   f('width_in', 'Package width', 'decimal', 'recommended', 'ACP; Google', { path: 'lot.dims.width_in', scope: 'lot', unit: 'in' }),

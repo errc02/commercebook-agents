@@ -8,13 +8,16 @@
  * No model call (Eric's rule: hand rules first). Pure apart from cpscRecallCheck(), which takes its fetch as an argument.
  */
 import { BASE_FIELDS, BASE_FULFILMENT } from './base.js';
+import { isValidGtin } from './gtin.js';
 import { MODULES, MODULE_BY_KEY } from './modules.js';
 import { CB_CATEGORY_NODES, OVERLAYS } from './overlays.js';
 import { ADULT_REASON, POLICY_RULES } from './policy.js';
 import type { CheckKey, Condition, Declaration, FactValue, ModuleKey, Overlay, PolicyRule, ProfileField, Refusal, TraitModule } from './types.js';
 
 /** The profile rules' version: a patch for wording, a minor for a recommended field, a major for a new requirement. */
-export const PROFILES_VERSION = '1.0.0';
+// CB-992: 1.1.0 adds kitchen_dining and the category gate on statements. CB-997: 1.2.0 asks for a photo only when the
+// product has no valid UPC, EAN or GTIN-14 (the no_valid_gtin operator; migration 198 teaches it to the database).
+export const PROFILES_VERSION = '1.2.0';
 /** The Shopify Standard Product Taxonomy release the profiles are written against. */
 export const TAXONOMY_VERSION = '2026-10';
 export const TAXONOMY_RELEASE_URL = 'https://github.com/Shopify/product-taxonomy/releases/tag/v2026-10';
@@ -112,8 +115,20 @@ export function holds(c: Condition, facts: Facts): boolean {
     case 'gte': { const n = num(v); return n !== null && n >= c.value; }
     case 'under': return isUnder(typeof v === 'string' ? v : null, c.value);
     case 'words': return hasWords(str(v), c.value);
+    case 'no_valid_gtin': return !isValidGtin(v);
     default: return false;
   }
+}
+
+/**
+ * CB-992 (P2-1): true when a condition can never hold for this category, whatever the product's other facts: an
+ * `under` test on the category that fails, inside an `all` (any part excludes) or an `any` (every part excludes).
+ */
+export function categoryExcludes(c: Condition, category: string | null | undefined): boolean {
+  if ('all' in c) return c.all.some((x) => categoryExcludes(x, category));
+  if ('any' in c) return c.any.every((x) => categoryExcludes(x, category));
+  if (c.op === 'under' && c.path === 'category') return !category || !isUnder(category, c.value);
+  return false;
 }
 
 /* ------------------------------------------------------------------ the overlay and the modules */
@@ -371,7 +386,8 @@ export function profileFor(category: string | null, cbCategory: string | null = 
   const restricted = hits.filter((h) => h.kind === 'restricted');
   const status: ProfileAnswer['policy']['status'] = prohibited.length ? 'prohibited' : overlay && !overlay.enabled ? 'disabled' : restricted.length ? 'restricted' : 'allowed';
   const reasons = [...prohibited.map((h) => h.reason), ...(overlay && !overlay.enabled ? [overlay.disabledReason ?? ''] : []), ...restricted.map((h) => h.reason)].filter(Boolean);
-  const decl = declarationsOf(overlay, keys);
+  // CB-992 (P2-1): a statement gated on a part of the taxonomy shows only for a category in that part.
+  const decl = declarationsOf(overlay, keys).filter((x) => !x.when || !categoryExcludes(x.when, category));
   for (const h of restricted) for (const x of POLICY_RULES.find((r) => r.key === h.key)?.declarations ?? []) if (!decl.some((y) => y.key === x.key)) decl.push(x);
   const fulfil = [...keys.map((k) => MODULE_BY_KEY[k].fulfilment).filter(Boolean), overlay?.fulfilment].filter(Boolean) as NonNullable<Overlay['fulfilment']>[];
   const allowed = (['ship', 'pickup'] as const).filter((o) => (fulfil.length ? fulfil : [BASE_FULFILMENT]).every((r) => r.allowed.includes(o)));

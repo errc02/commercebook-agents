@@ -51,7 +51,7 @@ export function registerCheckoutSessionTools(server: McpServer, api: ApiClient):
   }, async ({ session_id }) => run(() => api.get(`/checkout_sessions/${session_id}`)));
   server.registerTool('commercebook_checkout_session_complete', {
     title: 'Complete a checkout session',
-    description: 'POST /checkout_sessions/{id}/complete: places the order at the session’s totals and pays it with the owner’s balance, saved card or saved bank account, as commercebook_buy action place does. Needs the payments activity. The spending limits, the monthly budget and the owner’s rules apply; above $250, or above the confirm amount the owner set, the order waits for the owner’s approval (202, status in_progress), and you stop and ask the owner in the owner’s own chat. The answer carries the order: id and permalink_url.',
+    description: 'POST /checkout_sessions/{id}/complete: places the order at the session’s totals and pays it with the owner’s balance, saved card or saved bank account, as commercebook_buy action place does. Needs the payments activity. The spending limits, the monthly budget and the owner’s rules apply; every payment waits for the owner’s approval (202, status in_progress) until the owner raises the confirm amount, and you stop and ask the owner in the owner’s own chat. The answer carries the order: id and permalink_url.',
     inputSchema: { session_id: SESSION_ID, buyer: BUYER.optional() },
   }, async ({ session_id, ...rest }) => run(() => api.post(`/checkout_sessions/${session_id}/complete`, rest)));
   server.registerTool('commercebook_checkout_session_cancel', {

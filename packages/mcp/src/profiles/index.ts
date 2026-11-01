@@ -12,3 +12,5 @@ export { MODULES, MODULE_BY_KEY, MODULE_KEYS, moduleRules } from './modules.js';
 export { CB_CATEGORY_NODES, CB_CATEGORY_NOTES, FREE_TEXT_NODES, OVERLAYS, OVERLAY_BY_KEY, WAREHOUSE_KEY_NODES } from './overlays.js';
 export { ADULT_REASON, POLICY_BY_KEY, POLICY_RULES } from './policy.js';
 export * from './engine.js';
+export { isValidGtin } from './gtin.js';
+export { CB_KEY_PRIMARY, CB_KEY_WORDS, cbKeyForNode, keysAtNode, nodeForCbKey } from './derive.js';

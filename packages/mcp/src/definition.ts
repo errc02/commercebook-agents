@@ -23,8 +23,17 @@
  * engine itself is imported from ./profiles/index.js where it is used (as ./ways.js is), so that the pages that read
  * this module do not carry the profile data in their bundle.
  */
-export const LISTING_PROFILE_SELLER_OWNER_MD = '- Before you list anything, read its listing profile: `commercebook_capabilities` action `profile` with the category or my own words. Ask me the questions it names, fill in its required fields, have me confirm its statements, and list with taxonomy_category set to its category. A product missing a required field stays a draft, and a prohibited category is refused.';
-export const LISTING_PROFILE_SELLER_AGENT_MD = 'Before you list anything, read its listing profile: `commercebook_capabilities` action `profile` (GET /api/v1/profiles?q= with the owner\'s words, or ?category= with a Shopify category id or a CommerceBook key, no key needed). Ask your owner the questions it names, fill in its required fields in specs under their keys, have your owner confirm its statements (declarations on the record), and send taxonomy_category with the category id. A product missing a required field stays a draft and the dry run names the fields in profile_missing; a prohibited category is refused with the policy line.';
+/**
+ * CB-997 (SPEC-144, Eric 2026-11-01 01:56 CT): a photo is required only when the product carries no valid product code.
+ * A buyer's agent identifies a product from its UPC, EAN or GTIN-14, so a dropship catalog with codes and no images can
+ * go live. The one sentence of the rule; the listing profile's photo field, the seller texts and the help read it.
+ */
+export const PHOTO_RULE = 'Without a valid UPC, EAN or GTIN-14, a product needs at least one photo to go live.';
+/** The rule in the owner's words (the seller instructions file) and the agent's (the seller briefing). */
+export const PHOTO_RULE_OWNER_MD = `${PHOTO_RULE} Send the product's UPC, EAN or GTIN-14 whenever it has one.`;
+export const PHOTO_RULE_AGENT_MD = `${PHOTO_RULE} Send the code in product.gtin whenever the product has one: 12, 13 or 14 digits with a correct check digit.`;
+export const LISTING_PROFILE_SELLER_OWNER_MD = '- Before you list anything, read its listing profile: `commercebook_capabilities` action `profile` with the category or my own words. Ask me the questions it names, fill in its required fields, have me confirm its statements, and list with taxonomy_category set to its category. A product missing a required field stays a draft, and a prohibited category is refused. ' + PHOTO_RULE_OWNER_MD;
+export const LISTING_PROFILE_SELLER_AGENT_MD = 'Before you list anything, read its listing profile: `commercebook_capabilities` action `profile` (GET /api/v1/profiles?q= with the owner\'s words, or ?category= with a Shopify category id or a CommerceBook key, no key needed). Ask your owner the questions it names, fill in its required fields in specs under their keys, have your owner confirm its statements (declarations on the record), and send taxonomy_category with the category id. A product missing a required field stays a draft and the dry run names the fields in profile_missing; a prohibited category is refused with the policy line. ' + PHOTO_RULE_AGENT_MD;
 
 /** The definition for pages for people: the person is "you". */
 export const COMMERCEBOOK_DEFINITION =
@@ -63,9 +72,18 @@ export const safetyBulletsMd = (bullets: readonly string[] = SAFETY_BULLETS, pre
 export const SAFETY_OPENING = safetyBulletsMd(SAFETY_BULLETS);
 export const SAFETY_OPENING_MACHINE = safetyBulletsMd(SAFETY_BULLETS_MACHINE);
 
+/**
+ * CB-986 (Eric 2026-10-31 22:03, migration 196): the default matches the promise. A new key asks before every payment
+ * (confirm amount 0) until the owner raises the limit on purpose at Your agent. The consent screen, the
+ * connect card and the Agent access key card say it in this one sentence; the machine and owner-voice forms follow.
+ */
+export const APPROVAL_DEFAULT_LINE = 'Your agent asks you before every payment until you raise the limit on Your agent.';
+export const APPROVAL_DEFAULT_LINE_MACHINE = 'The agent asks its owner before every payment until the owner raises the limit on Your agent.';
+export const APPROVAL_DEFAULT_LINE_OWNER = 'You ask me before every payment until I raise the limit on Your agent.';
+
 /** The exact limits, after the bullets. */
-export const SAFETY_SUMMARY = 'Your agent starts read-only and payments start off. When you turn payments on, it spends up to $500 in any 30 days, a payment above $250 waits for your approval, and you can disconnect it at any time.';
-export const SAFETY_SUMMARY_MACHINE = "The agent starts read-only and payments start off. When its owner turns payments on, it spends up to $500 in any 30 days, a payment above $250 waits for the owner's approval, and the owner can disconnect it at any time.";
+export const SAFETY_SUMMARY = `Your agent starts read-only and payments start off. When you turn payments on, it spends up to $500 in any 30 days. ${APPROVAL_DEFAULT_LINE} You can disconnect it at any time.`;
+export const SAFETY_SUMMARY_MACHINE = `The agent starts read-only and payments start off. When its owner turns payments on, it spends up to $500 in any 30 days. ${APPROVAL_DEFAULT_LINE_MACHINE} The owner can disconnect it at any time.`;
 
 /** The safety block, verbatim, once per page (Markdown): the two bullets, then the exact limits. */
 export const SAFETY_BLOCK = `${SAFETY_OPENING}\n\n${SAFETY_SUMMARY}`;
@@ -79,7 +97,7 @@ export const SAFETY_LIMITS: readonly string[] = [
   'Read-only at the start.',
   'Payments off at the start.',
   'Up to $500 in any 30 days once payments are on.',
-  'A payment above $250 waits for your approval.',
+  'Every payment waits for your approval until you raise the limit on Your agent.',
 ];
 export const SAFETY_LIMITS_MD = SAFETY_LIMITS.map((l) => `- ${l} ${LIMIT_LINE}`).join('\n');
 
@@ -163,7 +181,7 @@ export const TELL_YOUR_AGENT_STEPS_MD = TELL_YOUR_AGENT_STEPS.map((s, i) => `${i
  * it (the maximum counts against the limits) stands beside it.
  */
 export const AUCTION_SELLER_OWNER = 'When I want buyers to bid, open a timed auction on one published product, the whole lot, with a start price and my private reserve: `commercebook_seller_orders` action `auction_open`. Allow auctions must be on in my policies, and I set the reserve. Read the bids with action `auction_status`, and close early with action `auction_close_early` only while there is no bid.';
-export const AUCTION_BUYER_OWNER = 'When a lot I want is in an auction, bid my maximum for the whole lot: `commercebook_buy` action `auction_bid`, after `commercebook_market` action `auctions`. I set the maximum. It counts against my limits until you are outbid or the auction closes, and a maximum above $250 waits for my approval. Read where the bid stands with `commercebook_buy` action `my_bids`.';
+export const AUCTION_BUYER_OWNER = 'When a lot I want is in an auction, bid my maximum for the whole lot: `commercebook_buy` action `auction_bid`, after `commercebook_market` action `auctions`. I set the maximum. It counts against my limits until you are outbid or the auction closes, and every maximum waits for my approval until I raise the limit on Your agent. Read where the bid stands with `commercebook_buy` action `my_bids`.';
 export const AUCTION_SELLER_AGENT = 'When your owner wants buyers to bid, open a timed auction on one published product, the whole lot, with a start price and your owner\'s private reserve: `commercebook_seller_orders` action `auction_open`. Allow auctions must be on in the seller policies, and your owner sets the reserve. Read the bids with action `auction_status`, and close early with action `auction_close_early` only while there is no bid.';
 export const AUCTION_BUYER_AGENT = 'When a lot your owner wants is in an auction, bid your owner\'s maximum for the whole lot: `commercebook_buy` action `auction_bid`, after `commercebook_market` action `auctions`. Your owner sets the maximum. It counts against the key\'s limits until you are outbid or the auction closes, and a maximum over the confirm amount waits for your owner\'s approval. Read where the bid stands with `commercebook_buy` action `my_bids`.';
 
@@ -207,9 +225,9 @@ export const privateOfferRulesMd = (rules: readonly string[]): string => rules.m
  * rather than `place`. The owner-voice form goes in the buyer instructions file ({{checkout_buyer}},
  * scripts/write-agent-instructions.mjs); the agent-voice form goes in the buyer briefing (the same token,
  * scripts/write-agent-briefing.mjs). Completing a session is the risky action, so the rule that governs it (the
- * approval above $250, as for place) stands beside it.
+ * approval of every payment until the owner raises the limit, as for place) stands beside it.
  */
-export const CHECKOUT_BUYER_OWNER = 'When my assistant speaks the Agentic Commerce Protocol, or when the address or the quantity must be settled before paying, check out through a session with one product: `commercebook_buy` actions `checkout_create`, `checkout_update` and `checkout_complete`. It pays as action `place` does, and a payment above $250 waits for my approval. Use action `place` for an open quote you already hold.';
+export const CHECKOUT_BUYER_OWNER = 'When my assistant speaks the Agentic Commerce Protocol, or when the address or the quantity must be settled before paying, check out through a session with one product: `commercebook_buy` actions `checkout_create`, `checkout_update` and `checkout_complete`. It pays as action `place` does, and every payment waits for my approval until I raise the limit on Your agent. Use action `place` for an open quote you already hold.';
 export const CHECKOUT_BUYER_AGENT = 'When your owner\'s assistant speaks the Agentic Commerce Protocol, or when the address or the quantity must be settled before paying, check out through a session with one product (POST /api/v1/checkout_sessions): `commercebook_buy` actions `checkout_create`, `checkout_update` and `checkout_complete`. Complete pays as action `place` does, and a payment over the confirm amount waits for your owner\'s approval (status in_progress). Use action `place` for an open quote you already hold.';
 
 /**
@@ -219,6 +237,6 @@ export const CHECKOUT_BUYER_AGENT = 'When your owner\'s assistant speaks the Age
  * that governs it (the limits apply as to any order) stands beside it.
  */
 export const SERVICE_SELLER_OWNER = 'When I sell a service I perform, list it with the price of one booking, the duration, where I do it and my weekly open times: `commercebook_seller_products` actions `service_list` and `availability_set`. I set the price, the area and the open times. After an appointment starts and the work is done, mark it done with `commercebook_seller_orders` action `done`.';
-export const SERVICE_BUYER_OWNER = 'When I need a service done, read its open slots with `commercebook_market` action `service_slots`, then hold one with `commercebook_buy` action `book` and the address where the work is done. Place it with `commercebook_buy` action `place` as any order; my limits apply, and a payment above $250 waits for my approval. Cancel more than 24 hours ahead with `commercebook_buy` action `booking_cancel`.';
+export const SERVICE_BUYER_OWNER = 'When I need a service done, read its open slots with `commercebook_market` action `service_slots`, then hold one with `commercebook_buy` action `book` and the address where the work is done. Place it with `commercebook_buy` action `place` as any order; my limits apply, and every payment waits for my approval until I raise the limit on Your agent. Cancel more than 24 hours ahead with `commercebook_buy` action `booking_cancel`.';
 export const SERVICE_SELLER_AGENT = 'When your owner sells a service it performs, list it with the price of one booking, the duration, where it is done and the weekly open times: `commercebook_seller_products` actions `service_list` and `availability_set`. Your owner sets the price, the area and the open times. After an appointment starts and the work is done, mark it done with `commercebook_seller_orders` action `done`.';
 export const SERVICE_BUYER_AGENT = 'When your owner needs a service done, read its open slots with `commercebook_market` action `service_slots`, then hold one with `commercebook_buy` action `book` and the address where the work is done. Place it with `commercebook_buy` action `place` as any order; the key\'s limits apply, and a payment over the confirm amount waits for your owner\'s approval. Cancel more than 24 hours ahead with `commercebook_buy` action `booking_cancel`.';

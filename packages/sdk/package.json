@@ -1,6 +1,6 @@
 {
   "name": "@commercebook/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript client for the CommerceBook API: search the market, quote, post a request with a ceiling price, accept a quote and list a product. Types generated from the OpenAPI document.",
   "license": "MIT",
   "type": "module",

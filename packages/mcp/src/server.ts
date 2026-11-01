@@ -33,7 +33,7 @@ import { needsKeyAnswer, toolAccess } from './access.js';
 import { collector, opFrom, parseRole, registerSurface, type ConnectionRole, type Op } from './intent-surface.js';
 
 export const SERVER_NAME = 'commercebook';
-export const SERVER_VERSION = '0.5.0';
+export const SERVER_VERSION = '0.6.0';
 /** SPEC-36: the server's own description, one sentence in the documentation voice. */
 export const SERVER_DESCRIPTION =
   'CommerceBook (https://commercebook.ai) is a network of verified warehouses and the sellers who sell through them, and these tools, each grouping the actions an agent takes for one task, call its API as the member whose key is configured, with every call recorded on that member’s ledger and commercebook_start returning the member’s full briefing.';

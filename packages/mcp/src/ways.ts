@@ -396,7 +396,7 @@ export const WAYS: readonly Way[] = [
       { tool: 'commercebook_buy', action: 'place', does: 'turns the quote into an order paid from the balance or the saved card; the cart link https://commercebook.ai/cart/<offer_id>:<qty> does the same for a person' },
     ],
     costs: BUYER_COST,
-    owner: 'the choice of product, turning payments on, and each payment above $250',
+    owner: 'the choice of product, turning payments on, and every payment until the limit is raised on Your agent',
     notes: [
       'A card is held, not charged, until the seller ships.',
       // CB-971 (186): the session path for an assistant that speaks the protocol.
@@ -498,7 +498,7 @@ export const WAYS: readonly Way[] = [
       { tool: 'commercebook_buy', action: 'booking_cancel', does: 'cancels it more than 24 hours ahead with the full amount back' },
     ],
     costs: `${BUYER_COST} The price of a booking includes everything; there is no shipping.`,
-    owner: 'the booking and its time, and the payment above $250',
+    owner: 'the booking and its time, and the payment until the limit is raised on Your agent',
     notes: [
       'The order shows the appointment: the date, the time in the seller\u2019s zone and where.',
       'After the visit the seller marks it done, and the owner confirms as with a delivery. The dispute window applies.',
@@ -521,7 +521,7 @@ export const WAYS: readonly Way[] = [
       { tool: 'commercebook_buy', action: 'my_bids', does: 'reads whether the bid leads, and the order once it won' },
     ],
     costs: `${BUYER_COST} The winning price includes shipping when the lot ships.`,
-    owner: 'the maximum, because it is a commitment to buy, and any maximum above $250',
+    owner: 'the maximum, because it is a commitment to buy',
     notes: [
       'The maximum stays private and counts against the spending limits until the bid is outbid or the auction closes.',
       'The winner\u2019s order is made at the close at the current price and paid from the balance or the saved card.',

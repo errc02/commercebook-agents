@@ -32,6 +32,8 @@ export type Condition =
   | { path: FactPath; op: 'lt' | 'gte'; value: number }
   | { path: 'category'; op: 'under'; value: string[] }
   | { path: 'text'; op: 'words'; value: string[] }
+  /** CB-997 (SPEC-144): holds when the value is not a valid UPC, EAN or GTIN-14 (isValidGtin; gtin_valid() in SQL). */
+  | { path: FactPath; op: 'no_valid_gtin' }
   | { all: Condition[] }
   | { any: Condition[] };
 

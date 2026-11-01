@@ -9,7 +9,7 @@
  * reviewed: false until Data reviews them.
  * Pure: no I/O.
  */
-import { any, d, eq, f, isTrue, oneOf, spec, under } from './base.js';
+import { all, any, d, eq, f, isTrue, oneOf, spec, under } from './base.js';
 import type { Overlay } from './types.js';
 
 const SHIP_OR_PICKUP = { allowed: ['ship', 'pickup'] as Array<'ship' | 'pickup'>, note: 'Ship by carrier or offer pickup, as the offer sets.' };
@@ -164,8 +164,10 @@ export const OVERLAYS: Overlay[] = [
     rank: 2,
     reviewed: true,
     enabled: true,
-    under: ['fr', 'hg-3', 'hg-11', 'hg'],
-    cbKeys: ['home_decor', 'home_garden', 'kitchen'],
+    // CB-992 (SPEC-140, P2-1): Kitchen and Dining (hg-11) and the kitchen key left this overlay for their own light
+    // profile below, so a mug never meets the dresser, composite wood or mattress statements.
+    under: ['fr', 'hg-3', 'hg'],
+    cbKeys: ['home_decor', 'home_garden'],
     defaultNode: 'hg-3',
     words: [
       { words: ['sofa', 'couch', 'sectional'], node: 'fr-22' },
@@ -173,7 +175,6 @@ export const OVERLAYS: Overlay[] = [
       { words: ['mattress'], node: 'fr-2-6' },
       { words: ['furniture', 'table', 'chair', 'desk', 'bookcase', 'cabinet', 'bed frame'], node: 'fr' },
       { words: ['decor', 'vase', 'candle', 'wall art', 'mirror', 'rug', 'pillow', 'lamp'], node: 'hg-3' },
-      { words: ['kitchen', 'cookware', 'dinnerware', 'mug'], node: 'hg-11' },
     ],
     modules: [],
     fields: [
@@ -194,7 +195,8 @@ export const OVERLAYS: Overlay[] = [
       f('cb_composite_wood', 'Contains composite wood', 'boolean', 'recommended', '40 CFR 770.45 (EPA FAQ)'),
     ],
     declarations: [
-      d('sturdy', 'This clothing storage unit meets 16 CFR 1261, carries its warning label and ships with its anti-tip device.', '16 CFR 1261 (STURDY); ASTM F3096', isTrue(spec('cb_clothing_storage_unit')), 'for clothing storage units'),
+      // CB-992 (P2-1): the statement carries the nodes of its field, so a category outside them never shows it.
+      d('sturdy', 'This clothing storage unit meets 16 CFR 1261, carries its warning label and ships with its anti-tip device.', '16 CFR 1261 (STURDY); ASTM F3096', all(under('fr-4-5', 'fr-4-13'), isTrue(spec('cb_clothing_storage_unit'))), 'for clothing storage units'),
       d('tsca_composite', 'The composite wood is labelled TSCA Title VI compliant with the fabricator and the production month and year.', '40 CFR 770.45', isTrue(spec('cb_composite_wood')), 'when the item contains composite wood'),
       d('mattress_law_label', 'This mattress carries the law label that 16 CFR 1632 and 1633 require.', '16 CFR 1632, 1633; CPSC', under('fr-2-6'), 'for mattresses'),
     ],
@@ -211,6 +213,35 @@ export const OVERLAYS: Overlay[] = [
     ],
     leaders: ['Wayfair', 'Chairish'],
     research: 'research record 4.11',
+  },
+  // ------------------------------------------------------------------ 2a. kitchen and dining (CB-992, from section 4.11)
+  // A light profile on the research record's base for Kitchen and Dining (hg-11): the base fields, the materials, the
+  // capacity and the care a buyer compares, and no furniture statements. Written from the research and marked
+  // reviewed: false until Data reviews it.
+  {
+    key: 'kitchen_dining',
+    name: 'Kitchen and dining',
+    rank: 19,
+    reviewed: false,
+    enabled: true,
+    under: ['hg-11'],
+    cbKeys: ['kitchen'],
+    defaultNode: 'hg-11',
+    words: [{ words: ['kitchen', 'cookware', 'dinnerware', 'mug', 'cup', 'plate', 'bowl', 'pan', 'pot', 'utensil'], node: 'hg-11' }],
+    modules: [],
+    fields: [
+      f('material', 'Material', 'text', 'recommended', 'Shopify', { help: 'For example stoneware, stainless steel or glass.' }),
+      f('color', 'Color', 'text', 'recommended', 'Shopify'),
+      f('cb_capacity', 'Capacity', 'text', 'recommended', 'Shopify', { help: 'For example 12 oz, or 5 qt.' }),
+      f('cb_set_count', 'Pieces in the set', 'integer', 'recommended', 'Shopify'),
+      f('cb_care', 'Care', 'text', 'recommended', 'Shopify', { help: 'For example dishwasher safe, or hand wash only.' }),
+    ],
+    declarations: [],
+    fulfilment: SHIP_OR_PICKUP,
+    returns: SELLER_TERMS,
+    questions: ['What is it made of?', 'What does it hold, and how many pieces are in the set?', 'Is it dishwasher safe?'],
+    leaders: ['Shopify Standard Product Taxonomy'],
+    research: 'research record 4.11 (base)',
   },
   // ------------------------------------------------------------------ 3. baby, children's products and toys (section 4.15)
   {
